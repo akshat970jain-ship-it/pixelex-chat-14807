@@ -14,6 +14,7 @@ type Profile = {
   username: string;
   avatar_url?: string;
   status?: string;
+  phone?: string;
 };
 
 type NewChatDialogProps = {
@@ -131,7 +132,8 @@ export const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDial
   const filteredProfiles = profiles.filter(
     (profile) =>
       profile.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      profile.username.toLowerCase().includes(searchQuery.toLowerCase())
+      profile.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (profile.phone && profile.phone.includes(searchQuery))
   );
 
   return (
@@ -144,7 +146,7 @@ export const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDial
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search users..."
+              placeholder="Search by name or phone number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -183,7 +185,9 @@ export const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDial
                     </div>
                     <div className="flex-1 text-left">
                       <p className="text-sm font-medium">{profile.full_name}</p>
-                      <p className="text-xs text-muted-foreground">@{profile.username}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {profile.phone || `@${profile.username}`}
+                      </p>
                     </div>
                   </div>
                 </Button>

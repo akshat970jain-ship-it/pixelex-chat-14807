@@ -14,6 +14,8 @@ const authSchema = z.object({
 });
 
 const signupSchema = authSchema.extend({
+  fullName: z.string().min(2, "Name must be at least 2 characters").max(100, "Name too long"),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format (use international format)"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -30,6 +32,8 @@ const Auth = () => {
   const [authForm, setAuthForm] = useState({
     email: "",
     password: "",
+    fullName: "",
+    phone: "",
     confirmPassword: "",
   });
 
@@ -85,6 +89,11 @@ const Auth = () => {
         password: validated.password,
         options: {
           emailRedirectTo: redirectUrl,
+          data: {
+            full_name: validated.fullName,
+            phone: validated.phone,
+            username: `user_${Date.now()}`,
+          },
         },
       });
 
@@ -109,7 +118,7 @@ const Auth = () => {
           description: "Account created successfully! You can now sign in.",
         });
         setIsLogin(true);
-        setAuthForm({ email: validated.email, password: "", confirmPassword: "" });
+        setAuthForm({ email: validated.email, password: "", fullName: "", phone: "", confirmPassword: "" });
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -173,6 +182,45 @@ const Auth = () => {
           {/* Form Content */}
           <div className="p-6">
             <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-4">
+              {!isLogin && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-fullname" className="text-card-foreground">
+                      Full Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="auth-fullname"
+                      type="text"
+                      placeholder="John Doe"
+                      value={authForm.fullName}
+                      onChange={(e) =>
+                        setAuthForm({ ...authForm, fullName: e.target.value })
+                      }
+                      required
+                      className="bg-background"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-phone" className="text-card-foreground">
+                      Phone Number <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="auth-phone"
+                      type="tel"
+                      placeholder="+1234567890"
+                      value={authForm.phone}
+                      onChange={(e) =>
+                        setAuthForm({ ...authForm, phone: e.target.value })
+                      }
+                      required
+                      className="bg-background"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Include country code (e.g., +1 for US)
+                    </p>
+                  </div>
+                </>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="auth-email" className="text-card-foreground">
                   Email Address <span className="text-destructive">*</span>
@@ -245,7 +293,7 @@ const Auth = () => {
                 type="button"
                 onClick={() => {
                   setIsLogin(!isLogin);
-                  setAuthForm({ email: "", password: "", confirmPassword: "" });
+                  setAuthForm({ email: "", password: "", fullName: "", phone: "", confirmPassword: "" });
                 }}
                 className="text-sm text-primary hover:underline"
               >
