@@ -8,9 +8,16 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { MessageSquare, ShieldCheck, WifiOff, Eye, EyeOff, UserCircle } from "lucide-react";
 
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+const authSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email too long"),
+  password: z.string().min(6, "Password must be at least 6 characters").max(100, "Password too long"),
+});
+
+const signupSchema = authSchema.extend({
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 const Auth = () => {
@@ -20,9 +27,10 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [loginForm, setLoginForm] = useState({
+  const [authForm, setAuthForm] = useState({
     email: "",
     password: "",
+    confirmPassword: "",
   });
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -30,7 +38,7 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const validated = loginSchema.parse(loginForm);
+      const validated = authSchema.parse(authForm);
       
       const { error } = await supabase.auth.signInWithPassword({
         email: validated.email,
@@ -50,6 +58,58 @@ const Auth = () => {
           description: "You have been logged in successfully",
         });
         navigate("/");
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation error",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const validated = signupSchema.parse(authForm);
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: validated.email,
+        password: validated.password,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      });
+
+      if (error) {
+        if (error.message.includes("already registered")) {
+          toast({
+            title: "Account exists",
+            description: "This email is already registered. Please sign in instead.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Sign up failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      } else if (data?.user) {
+        localStorage.removeItem("guestMode");
+        toast({
+          title: "Success",
+          description: "Account created successfully! You can now sign in.",
+        });
+        setIsLogin(true);
+        setAuthForm({ email: validated.email, password: "", confirmPassword: "" });
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -112,35 +172,35 @@ const Auth = () => {
 
           {/* Form Content */}
           <div className="p-6">
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="login-email" className="text-card-foreground">
+                <Label htmlFor="auth-email" className="text-card-foreground">
                   Email Address <span className="text-destructive">*</span>
                 </Label>
                 <Input
-                  id="login-email"
+                  id="auth-email"
                   type="email"
                   placeholder="you@example.com"
-                  value={loginForm.email}
+                  value={authForm.email}
                   onChange={(e) =>
-                    setLoginForm({ ...loginForm, email: e.target.value })
+                    setAuthForm({ ...authForm, email: e.target.value })
                   }
                   required
                   className="bg-background"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="login-password" className="text-card-foreground">
+                <Label htmlFor="auth-password" className="text-card-foreground">
                   Password <span className="text-destructive">*</span>
                 </Label>
                 <div className="relative">
                   <Input
-                    id="login-password"
+                    id="auth-password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    value={loginForm.password}
+                    value={authForm.password}
                     onChange={(e) =>
-                      setLoginForm({ ...loginForm, password: e.target.value })
+                      setAuthForm({ ...authForm, password: e.target.value })
                     }
                     required
                     className="bg-background pr-10"
@@ -154,10 +214,44 @@ const Auth = () => {
                   </button>
                 </div>
               </div>
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="auth-confirm-password" className="text-card-foreground">
+                    Confirm Password <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="auth-confirm-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={authForm.confirmPassword}
+                      onChange={(e) =>
+                        setAuthForm({ ...authForm, confirmPassword: e.target.value })
+                      }
+                      required
+                      className="bg-background pr-10"
+                    />
+                  </div>
+                </div>
+              )}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? (isLogin ? "Signing in..." : "Creating account...") : (isLogin ? "Sign In" : "Create Account")}
               </Button>
             </form>
+
+            {/* Toggle Login/Signup */}
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setAuthForm({ email: "", password: "", confirmPassword: "" });
+                }}
+                className="text-sm text-primary hover:underline"
+              >
+                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              </button>
+            </div>
 
             {/* Guest Mode Button */}
             <div className="mt-4">
