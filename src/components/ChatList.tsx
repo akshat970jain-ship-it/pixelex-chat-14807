@@ -14,6 +14,7 @@ import { useHaptics } from "@/hooks/useHaptics";
 import { useQueryClient } from "@tanstack/react-query";
 import { MobileChatListHeader } from "./MobileChatListHeader";
 import { FloatingNewChatButton } from "./FloatingNewChatButton";
+import { NewChatDialog } from "./NewChatDialog";
 import { cn } from "@/lib/utils";
 
 const recentAvatars = [
@@ -104,6 +105,7 @@ export const ChatList = ({ isMobile = false, onMenuClick, onChatSelect }: ChatLi
   const [isPulling, setIsPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [showFAB, setShowFAB] = useState(false);
+  const [showNewChatDialog, setShowNewChatDialog] = useState(false);
   const touchStartY = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -159,7 +161,18 @@ export const ChatList = ({ isMobile = false, onMenuClick, onChatSelect }: ChatLi
 
   const handleNewChatClick = () => {
     haptics.light();
-    console.log("New chat clicked");
+    if (isGuest) {
+      return;
+    }
+    setShowNewChatDialog(true);
+  };
+
+  const handleChatCreated = (conversationId: string) => {
+    refetch();
+    setSelectedConversationId(conversationId);
+    if (isMobile && onChatSelect) {
+      onChatSelect();
+    }
   };
 
   const handleConversationClick = (conversationId: string) => {
@@ -177,12 +190,19 @@ export const ChatList = ({ isMobile = false, onMenuClick, onChatSelect }: ChatLi
   };
 
   return (
-    <aside className={cn(
-      "bg-background flex flex-col h-full",
-      isMobile ? "w-full" : "w-96 border-l border-border"
-    )}>
-      {/* Mobile Header */}
-      {isMobile && onMenuClick && <MobileChatListHeader onMenuClick={onMenuClick} />}
+    <>
+      <NewChatDialog
+        open={showNewChatDialog}
+        onOpenChange={setShowNewChatDialog}
+        onChatCreated={handleChatCreated}
+      />
+      
+      <aside className={cn(
+        "bg-background flex flex-col h-full",
+        isMobile ? "w-full" : "w-96 border-l border-border"
+      )}>
+        {/* Mobile Header */}
+        {isMobile && onMenuClick && <MobileChatListHeader onMenuClick={onMenuClick} />}
 
       {/* Mobile Search Bar */}
       {isMobile && (
@@ -327,6 +347,7 @@ export const ChatList = ({ isMobile = false, onMenuClick, onChatSelect }: ChatLi
           )}
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
