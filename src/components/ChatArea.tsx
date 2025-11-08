@@ -30,6 +30,7 @@ export const ChatArea = ({ isMobile = false, onBack, onMenuClick }: ChatAreaProp
   const [otherParticipant, setOtherParticipant] = useState<any>(null);
   const [guestMessages, setGuestMessages] = useState<Record<string, any[]>>({});
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -137,6 +138,54 @@ export const ChatArea = ({ isMobile = false, onBack, onMenuClick }: ChatAreaProp
     const name = otherParticipant?.full_name || otherParticipant?.username || 'Unknown User';
     const avatar = otherParticipant?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherParticipant?.username}`;
     navigate(`/call?type=${type}&name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatar)}`);
+  };
+
+  const handleFileAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConversationId || !currentUserId) return;
+
+    if (isGuest) {
+      toast({
+        title: "Feature unavailable",
+        description: "File uploads are not available in guest mode",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${currentUserId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-attachments')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(filePath);
+
+      await handleSendMessage(publicUrl);
+      
+      toast({
+        title: "Success",
+        description: "File uploaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
   };
 
   if (!selectedConversationId) {
@@ -255,7 +304,20 @@ export const ChatArea = ({ isMobile = false, onBack, onMenuClick }: ChatAreaProp
           />
         ) : (
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-muted">
+            <input
+              type="file"
+              id="file-upload"
+              className="hidden"
+              onChange={handleFileAttachment}
+              accept="image/*,video/*,.pdf,.doc,.docx"
+            />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-muted-foreground hover:bg-muted"
+              onClick={() => document.getElementById('file-upload')?.click()}
+              disabled={isUploading}
+            >
               <Paperclip className="w-5 h-5" />
             </Button>
             <Input
