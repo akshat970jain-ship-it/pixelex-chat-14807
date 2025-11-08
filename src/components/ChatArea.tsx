@@ -13,6 +13,7 @@ import { mockMessages, mockConversations } from "@/data/mockData";
 import { MobileChatHeader } from "./MobileChatHeader";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 type ChatAreaProps = {
   isMobile?: boolean;
@@ -21,6 +22,7 @@ type ChatAreaProps = {
 };
 
 export const ChatArea = ({ isMobile = false, onBack, onMenuClick }: ChatAreaProps) => {
+  const navigate = useNavigate();
   const { selectedConversationId, isGuest } = useChatContext();
   const { data: messages, isLoading } = useMessages(selectedConversationId);
   const [messageInput, setMessageInput] = useState("");
@@ -131,6 +133,12 @@ export const ChatArea = ({ isMobile = false, onBack, onMenuClick }: ChatAreaProp
     setIsRecordingVoice(false);
   };
 
+  const handleCall = (type: "audio" | "video") => {
+    const name = otherParticipant?.full_name || otherParticipant?.username || 'Unknown User';
+    const avatar = otherParticipant?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherParticipant?.username}`;
+    navigate(`/call?type=${type}&name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatar)}`);
+  };
+
   if (!selectedConversationId) {
     return (
       <main className="flex-1 flex items-center justify-center bg-background">
@@ -170,10 +178,20 @@ export const ChatArea = ({ isMobile = false, onBack, onMenuClick }: ChatAreaProp
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-foreground hover:bg-muted"
+            onClick={() => handleCall("audio")}
+          >
             <Phone className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-foreground hover:bg-muted"
+            onClick={() => handleCall("video")}
+          >
             <Video className="w-5 h-5" />
           </Button>
           <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted">
