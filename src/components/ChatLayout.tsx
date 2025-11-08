@@ -13,18 +13,20 @@ type ChatLayoutProps = {
   isGuest?: boolean;
 };
 
-type MobileView = "list" | "chat" | "settings" | "calls";
+type MobileView = "list" | "chat" | "updates" | "communities" | "calls";
 
 export const ChatLayout = ({ isGuest = false }: ChatLayoutProps) => {
   const isMobile = useIsMobile();
   const [mobileView, setMobileView] = useState<MobileView>("list");
-  const [activeTab, setActiveTab] = useState<"chats" | "calls" | "settings">("chats");
+  const [activeTab, setActiveTab] = useState<"chats" | "updates" | "communities" | "calls">("chats");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const handleTabChange = (tab: "chats" | "calls" | "settings") => {
+  const handleTabChange = (tab: "chats" | "updates" | "communities" | "calls") => {
     setActiveTab(tab);
-    if (tab === "settings") {
-      setMobileView("settings");
+    if (tab === "updates") {
+      setMobileView("updates");
+    } else if (tab === "communities") {
+      setMobileView("communities");
     } else if (tab === "calls") {
       setMobileView("calls");
     } else {
@@ -78,6 +80,26 @@ export const ChatLayout = ({ isGuest = false }: ChatLayoutProps) => {
             />
           </div>
 
+          {/* Updates View */}
+          <div
+            className={cn(
+              "absolute inset-0 bg-background transition-opacity duration-300 flex items-center justify-center",
+              mobileView === "updates" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <p className="text-muted-foreground">Updates coming soon</p>
+          </div>
+
+          {/* Communities View */}
+          <div
+            className={cn(
+              "absolute inset-0 bg-background transition-opacity duration-300 flex items-center justify-center",
+              mobileView === "communities" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <p className="text-muted-foreground">Communities coming soon</p>
+          </div>
+
           {/* Calls View */}
           <div
             className={cn(
@@ -86,16 +108,6 @@ export const ChatLayout = ({ isGuest = false }: ChatLayoutProps) => {
             )}
           >
             <CallsList />
-          </div>
-
-          {/* Settings View */}
-          <div
-            className={cn(
-              "absolute inset-0 bg-background transition-opacity duration-300",
-              mobileView === "settings" ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}
-          >
-            <Sidebar isGuest={isGuest} />
           </div>
 
           <MobileBottomNav activeTab={activeTab} onTabChange={handleTabChange} />
