@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { MessageCircle, Phone, Video, MoreVertical } from "lucide-react";
 import { useHaptics } from "@/hooks/useHaptics";
+import { useNavigate } from "react-router-dom";
 
 interface ProfileViewProps {
   user: any;
@@ -12,8 +13,17 @@ interface ProfileViewProps {
 
 export const ProfileView = ({ user, open, onOpenChange }: ProfileViewProps) => {
   const haptics = useHaptics();
+  const navigate = useNavigate();
 
   if (!user) return null;
+
+  const handleCall = (type: "audio" | "video") => {
+    haptics.medium();
+    const name = user.full_name || user.username || 'Unknown User';
+    const avatar = user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+    onOpenChange(false);
+    navigate(`/call?type=${type}&name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatar)}`);
+  };
 
   const handleAction = (action: string) => {
     haptics.medium();
@@ -61,14 +71,14 @@ export const ProfileView = ({ user, open, onOpenChange }: ProfileViewProps) => {
             <Button 
               variant="outline" 
               size="icon"
-              onClick={() => handleAction('call')}
+              onClick={() => handleCall('audio')}
             >
               <Phone className="w-5 h-5" />
             </Button>
             <Button 
               variant="outline" 
               size="icon"
-              onClick={() => handleAction('video')}
+              onClick={() => handleCall('video')}
             >
               <Video className="w-5 h-5" />
             </Button>
