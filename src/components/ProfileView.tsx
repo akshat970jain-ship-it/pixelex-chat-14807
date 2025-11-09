@@ -4,6 +4,11 @@ import { Button } from "./ui/button";
 import { MessageCircle, Phone, Video, MoreVertical } from "lucide-react";
 import { useHaptics } from "@/hooks/useHaptics";
 import { useNavigate } from "react-router-dom";
+import { useChatContext } from "@/contexts/ChatContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useState } from "react";
 
 interface ProfileViewProps {
   user: any;
@@ -14,6 +19,9 @@ interface ProfileViewProps {
 export const ProfileView = ({ user, open, onOpenChange }: ProfileViewProps) => {
   const haptics = useHaptics();
   const navigate = useNavigate();
+  const { setSelectedConversationId } = useChatContext();
+  const queryClient = useQueryClient();
+  const [isCreating, setIsCreating] = useState(false);
 
   if (!user) return null;
 
@@ -23,6 +31,70 @@ export const ProfileView = ({ user, open, onOpenChange }: ProfileViewProps) => {
     const avatar = user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
     onOpenChange(false);
     navigate(`/call?type=${type}&name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatar)}`);
+  };
+
+  const handleMessage = async () => {
+    haptics.medium();
+    setIsCreating(true);
+    
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        toast.error("Please sign in to send messages");
+        return;
+      }
+
+      // Check if conversation already exists
+      const { data: existingConversations } = await supabase
+        .from("conversation_participants")
+        .select("conversation_id")
+        .eq("user_id", currentUser.id);
+
+      if (existingConversations) {
+        for (const conv of existingConversations) {
+          const { data: participants } = await supabase
+            .from("conversation_participants")
+            .select("user_id")
+            .eq("conversation_id", conv.conversation_id);
+
+          if (participants?.some(p => p.user_id === user.id)) {
+            setSelectedConversationId(conv.conversation_id);
+            onOpenChange(false);
+            setIsCreating(false);
+            return;
+          }
+        }
+      }
+
+      // Create new conversation
+      const { data: conversation, error: convError } = await supabase
+        .from("conversations")
+        .insert({})
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Add both participants
+      const { error: participantsError } = await supabase
+        .from("conversation_participants")
+        .insert([
+          { conversation_id: conversation.id, user_id: currentUser.id },
+          { conversation_id: conversation.id, user_id: user.id },
+        ]);
+
+      if (participantsError) throw participantsError;
+
+      await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      setSelectedConversationId(conversation.id);
+      onOpenChange(false);
+      toast.success("Chat opened");
+    } catch (error: any) {
+      console.error("Error creating conversation:", error);
+      toast.error("Failed to open chat");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleAction = (action: string) => {
@@ -63,10 +135,11 @@ export const ProfileView = ({ user, open, onOpenChange }: ProfileViewProps) => {
               variant="outline" 
               size="lg" 
               className="flex-1"
-              onClick={() => handleAction('message')}
+              onClick={handleMessage}
+              disabled={isCreating}
             >
               <MessageCircle className="w-5 h-5 mr-2" />
-              Message
+              {isCreating ? "Opening..." : "Message"}
             </Button>
             <Button 
               variant="outline" 
